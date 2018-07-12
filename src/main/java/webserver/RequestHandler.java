@@ -25,6 +25,9 @@ public class RequestHandler extends Thread {
                 connection.getPort());
 
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
+            // TODO 사용자 요청에 대한 처리는 이 곳에 구현하면 된다.
+            DataOutputStream dos = new DataOutputStream(out);
+
             BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
             String line = br.readLine();
             if(line == null) return;
@@ -74,10 +77,10 @@ public class RequestHandler extends Thread {
                 String email = paramaters.get("email");
                 User user = new User(userId, password, name, email);
                 log.debug("user : {}", user);
+
+                response302Header(dos);
             }
 
-            // TODO 사용자 요청에 대한 처리는 이 곳에 구현하면 된다.
-            DataOutputStream dos = new DataOutputStream(out);
             response200Header(dos, body.length);
             responseBody(dos, body);
         } catch (IOException e) {
@@ -94,6 +97,16 @@ public class RequestHandler extends Thread {
         } catch (IOException e) {
             log.error(e.getMessage());
         }
+    }
+
+    private void response302Header(DataOutputStream dos){
+        try {
+            dos.writeBytes("HTTP/1.1 302 found \r\n");
+            dos.writeBytes("Location: http://localhost:8080/index.html \r\n");
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+
     }
 
     private void responseBody(DataOutputStream dos, byte[] body) {
