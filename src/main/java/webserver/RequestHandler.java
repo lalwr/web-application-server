@@ -9,6 +9,7 @@ import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.HttpRequestUtils;
+import util.IOUtils;
 
 public class RequestHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
@@ -53,9 +54,26 @@ public class RequestHandler extends Thread {
                 log.debug("user : {}", user);
             }
 
+            String[] contentLength = new String[2];
             while(!"".equals(line)){
                 line = br.readLine();
                 log.debug("header : {}", line);
+                if(line.startsWith("Content-Length:")){
+                    contentLength = line.split(" ");
+                }
+            }
+
+            if("POST".equals(tokens[0])){
+                String params = IOUtils.readData(br, Integer.parseInt(contentLength[1]));
+                log.debug("post params {}", params);
+
+                Map<String, String> paramaters = HttpRequestUtils.parseQueryString(params);
+                String userId = paramaters.get("userId");
+                String password = paramaters.get("password");
+                String name = paramaters.get("name");
+                String email = paramaters.get("email");
+                User user = new User(userId, password, name, email);
+                log.debug("user : {}", user);
             }
 
             // TODO 사용자 요청에 대한 처리는 이 곳에 구현하면 된다.
