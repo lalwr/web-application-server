@@ -3,13 +3,17 @@ package webserver;
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.sql.DatabaseMetaData;
 import java.util.Map;
 
+import db.DataBase;
 import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.HttpRequestUtils;
 import util.IOUtils;
+
+import javax.xml.crypto.Data;
 
 public class RequestHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
@@ -55,6 +59,8 @@ public class RequestHandler extends Thread {
                 String email = paramaters.get("email");
                 User user = new User(userId, password, name, email);
                 log.debug("user : {}", user);
+
+                DataBase.addUser(user);
             }
 
             String[] contentLength = new String[2];
@@ -70,18 +76,36 @@ public class RequestHandler extends Thread {
                 String params = IOUtils.readData(br, Integer.parseInt(contentLength[1]));
                 log.debug("post params {}", params);
 
-                Map<String, String> paramaters = HttpRequestUtils.parseQueryString(params);
-                String userId = paramaters.get("userId");
-                String password = paramaters.get("password");
-                String name = paramaters.get("name");
-                String email = paramaters.get("email");
-                User user = new User(userId, password, name, email);
-                log.debug("user : {}", user);
+
+
+                if("/user/login".equals(url)){
+                    String cookie = "false";
+
+                    Map<String, String> paramaters = HttpRequestUtils.parseQueryString(params);
+                    String userId = paramaters.get("userId");
+                    String password = paramaters.get("password");
+
+                    User findUser = DataBase.findUserById(userId);
+                    if(findUser != null){
+                        cookie = "true";
+                    }
+                    response200LoginHeader(dos, body.length, cookie);
+                }else{
+                    Map<String, String> paramaters = HttpRequestUtils.parseQueryString(params);
+                    String userId = paramaters.get("userId");
+                    String password = paramaters.get("password");
+                    String name = paramaters.get("name");
+                    String email = paramaters.get("email");
+                    User user = new User(userId, password, name, email);
+                    log.debug("user : {}", user);
+                    DataBase.addUser(user);
+                }
 
                 response302Header(dos);
+            }else{
+                response200Header(dos, body.length);
             }
 
-            response200Header(dos, body.length);
             responseBody(dos, body);
         } catch (IOException e) {
             log.error(e.getMessage());
@@ -93,6 +117,18 @@ public class RequestHandler extends Thread {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    private void response200LoginHeader(DataOutputStream dos, int lengthOfBodyContent, String cookie) {
+        try {
+            dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("Set-Cookie: logined=" + cookie + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.error(e.getMessage());
