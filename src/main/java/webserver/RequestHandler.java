@@ -3,9 +3,12 @@ package webserver;
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.util.Map;
 
+import model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import util.HttpRequestUtils;
 
 public class RequestHandler extends Thread {
     private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
@@ -21,16 +24,34 @@ public class RequestHandler extends Thread {
                 connection.getPort());
 
         try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
-            //TODO 3.4.3.1 요구사항1 indexl.html 응답하기
             BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
             String line = br.readLine();
+            if(line == null) return;
             log.debug("request line : {}", line);
 
             String[] tokens = line.split(" ");
 
-            byte[] body = Files.readAllBytes(new File("./webapp" + tokens[1]).toPath());
+            byte[] body = "hello world".getBytes();
+            File file = new File("./webapp" + tokens[1]);
+            if(file.exists()){
+                body = Files.readAllBytes(new File("./webapp" + tokens[1]).toPath());
+            }
 
-            if(line == null) return;
+            String url = tokens[1];
+            log.debug("url : {}", url);
+            if( url.contains("?") ){
+                int index = url.indexOf("?");
+                String requestPath = url.substring(0, index);
+                String params = url.substring(index+1);
+
+                Map<String, String> paramaters = HttpRequestUtils.parseQueryString(params);
+                String userId = paramaters.get("userId");
+                String password = paramaters.get("password");
+                String name = paramaters.get("name");
+                String email = paramaters.get("email");
+                User user = new User(userId, password, name, email);
+                log.debug("user : {}", user);
+            }
 
             while(!"".equals(line)){
                 line = br.readLine();
