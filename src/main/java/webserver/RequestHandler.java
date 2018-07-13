@@ -52,6 +52,7 @@ public class RequestHandler extends Thread {
 
             String[] contentLength = new String[2];
             boolean isLogin = false;
+            boolean cssChceck = false;
             while(!"".equals(line)){
                 line = br.readLine();
                 log.debug("header : {}", line);
@@ -63,6 +64,11 @@ public class RequestHandler extends Thread {
                     Map<String, String> cookie = HttpRequestUtils.parseCookies(cookieValue[1]);
                     String logined = cookie.get("logined");
                     isLogin = Boolean.parseBoolean(logined);
+                }
+
+                if(line.contains("Accept:")){
+                    String[] cookieValue = line.split(" ");
+                    cssChceck = cookieValue[1].contains("text/css");
                 }
             }
 
@@ -124,7 +130,11 @@ public class RequestHandler extends Thread {
                         body = sb.toString().getBytes();
                     }
                 }
-                response200Header(dos, body.length);
+                if(cssChceck){
+                    response200CssHeader(dos, body.length);
+                }else{
+                    response200Header(dos, body.length);
+                }
                 responseBody(dos, body);
             }
 
@@ -137,6 +147,17 @@ public class RequestHandler extends Thread {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
             dos.writeBytes("Content-Type: text/html;charset=utf-8\r\n");
+            dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
+            dos.writeBytes("\r\n");
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+    private void response200CssHeader(DataOutputStream dos, int lengthOfBodyContent) {
+        try {
+            dos.writeBytes("HTTP/1.1 200 OK \r\n");
+            dos.writeBytes("Content-Type: text/css;charset=utf-8\r\n");
             dos.writeBytes("Content-Length: " + lengthOfBodyContent + "\r\n");
             dos.writeBytes("\r\n");
         } catch (IOException e) {
