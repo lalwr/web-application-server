@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.sql.DatabaseMetaData;
+import java.util.Collection;
 import java.util.Map;
 
 import db.DataBase;
@@ -40,43 +41,35 @@ public class RequestHandler extends Thread {
             String[] tokens = line.split(" ");
 
             byte[] body = "hello world".getBytes();
-            File file = new File("./webapp" + tokens[1]);
-            if(file.exists()){
-                body = Files.readAllBytes(new File("./webapp" + tokens[1]).toPath());
-            }
-
             String url = tokens[1];
-            log.debug("url : {}", url);
-            if( url.contains("?") ){
-                int index = url.indexOf("?");
-                String requestPath = url.substring(0, index);
-                String params = url.substring(index+1);
 
-                Map<String, String> paramaters = HttpRequestUtils.parseQueryString(params);
-                String userId = paramaters.get("userId");
-                String password = paramaters.get("password");
-                String name = paramaters.get("name");
-                String email = paramaters.get("email");
-                User user = new User(userId, password, name, email);
-                log.debug("user : {}", user);
-
-                DataBase.addUser(user);
+            File file = new File("./webapp" + url);
+            if(file.exists()){
+                body = Files.readAllBytes(new File("./webapp" + url).toPath());
             }
+
+            log.debug("url : {}", url);
 
             String[] contentLength = new String[2];
+            boolean isLogin = false;
             while(!"".equals(line)){
                 line = br.readLine();
                 log.debug("header : {}", line);
                 if(line.startsWith("Content-Length:")){
                     contentLength = line.split(" ");
                 }
+                if(line.contains("Cookie")){
+                    String[] cookieValue = line.split(" ");
+                    Map<String, String> cookie = HttpRequestUtils.parseCookies(cookieValue[1]);
+                    String logined = cookie.get("logined");
+                    isLogin = Boolean.parseBoolean(logined);
+                }
             }
 
-            if("POST".equals(tokens[0])){
+            String httpMethod = tokens[0];
+            if("POST".equals(httpMethod)){
                 String params = IOUtils.readData(br, Integer.parseInt(contentLength[1]));
                 log.debug("post params {}", params);
-
-
 
                 if("/user/login".equals(url)){
                     String cookie = "false";
@@ -86,11 +79,18 @@ public class RequestHandler extends Thread {
                     String password = paramaters.get("password");
 
                     User findUser = DataBase.findUserById(userId);
-                    if(findUser != null){
+                    if(findUser == null){
+                        cookie = "false";
+                        body = Files.readAllBytes(new File("./webapp/user/login_failed.html").toPath());
+                    }else if(!findUser.getPassword().equals(findUser.getPassword())){
+                        cookie = "false";
+                        body = Files.readAllBytes(new File("./webapp/user/login_failed.html").toPath());
+                    }else if(findUser.getPassword().equals(findUser.getPassword())){
                         cookie = "true";
                     }
                     response200LoginHeader(dos, body.length, cookie);
-                }else{
+                    responseBody(dos, body);
+                }else if("/user/create".equals(url)){
                     Map<String, String> paramaters = HttpRequestUtils.parseQueryString(params);
                     String userId = paramaters.get("userId");
                     String password = paramaters.get("password");
@@ -99,14 +99,35 @@ public class RequestHandler extends Thread {
                     User user = new User(userId, password, name, email);
                     log.debug("user : {}", user);
                     DataBase.addUser(user);
-                }
 
-                response302Header(dos);
+                    response302Header(dos);
+                    responseBody(dos, body);
+                }
             }else{
+
+                if("/user/list".equals(url)){
+                    if(!isLogin){
+                        body = Files.readAllBytes(new File("./webapp/user/login.html").toPath());
+                    }else{
+                        Collection<User> userAll = DataBase.findAll();
+                        StringBuffer sb = new StringBuffer();
+
+                        sb.append("<table border='1'>");
+                        userAll.forEach((user) -> {
+                            sb.append("<tr>");
+                            sb.append("<td> 유저 아이디 : " + user.getUserId() + "</td>");
+                            sb.append("<td> 유저 이메일 : " + user.getEmail() + "</td>");
+                            sb.append("<td> 유저 이름 : " + user.getName() + "</td>");
+                            sb.append("</tr>");
+                        });
+                        sb.append("</table>");
+                        body = sb.toString().getBytes();
+                    }
+                }
                 response200Header(dos, body.length);
+                responseBody(dos, body);
             }
 
-            responseBody(dos, body);
         } catch (IOException e) {
             log.error(e.getMessage());
         }
