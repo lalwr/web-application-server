@@ -36,7 +36,6 @@ public class RequestHandler extends Thread {
             HttpResponse response = new HttpResponse(out);
 
             String path = getDefaultUrl(request.getPath());
-            String url = "";
 
             if("/user/create".equals(path)){
                 String userId = request.getParameter("userId");
@@ -86,10 +85,6 @@ public class RequestHandler extends Thread {
         } catch (IOException io) {
             log.error(io.getMessage());
         }
-    }
-
-    private void responseResource(OutputStream out, String s) {
-        DataOutputStream dos = new DataOutputStream(out);
     }
 
     private String getDefaultUrl(String path){

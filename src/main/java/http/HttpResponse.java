@@ -29,11 +29,11 @@ public class HttpResponse {
     public void forward(String url){
         try {
             byte[] body = Files.readAllBytes(new File("./webapp" + url).toPath());
-            if(url.endsWith(".css")){
+            if (url.endsWith(".css")) {
                 headers.put("Content-Type", "text/css");
-            }else if(url.endsWith(".js")){
+            } else if (url.endsWith(".js")) {
                 headers.put("Content-Type", "application/javascript");
-            }else {
+            } else {
                 headers.put("Content-Type", "text/html;charset=utf-8");
             }
             headers.put("Content-Length", body.length + "");
@@ -67,6 +67,7 @@ public class HttpResponse {
         try {
             dos.writeBytes("HTTP/1.1 200 OK \r\n");
             processHeaders();
+            dos.writeBytes("\r\n");
         } catch (IOException e) {
             log.error(e.getMessage());
         }
