@@ -13,61 +13,55 @@ import util.IOUtils;
 public class HttpRequest {
     private static final Logger log = LoggerFactory.getLogger(HttpRequest.class);
 
-    private Map<String, String> headers = new HashMap<String, String>();
-    private Map<String, String> params = new HashMap<String, String>();
     private RequestLine requestLine;
 
-    public HttpRequest(InputStream in){
+    private HttpHeaders headers;
+
+    private RequestParams requestParams = new RequestParams();
+
+    public HttpRequest(InputStream is) {
         try {
-            BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-            String line = br.readLine();
-            if(line == null) return;
-            log.debug("request line : {}", line);
-
-            requestLine = new RequestLine(line);
-
-            while(!"".equals(line = br.readLine()) ){
-                log.debug("header : {}", line);
-                String[] tokens = line.split(":");
-                headers.put(tokens[0].trim(), tokens[1].trim());
-            }
-
-            if(HttpMethod.POST.equals(getMethod())){
-                String body = IOUtils.readData(br, Integer.parseInt(headers.get("Content-Length")));
-                params = HttpRequestUtils.parseQueryString(body);
-            }else{
-                params = requestLine.getParams();
-            }
-
-        } catch (IOException io) {
-            log.error(io.getMessage());
+            BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+            requestLine = new RequestLine(createRequestLine(br));
+            requestParams.addQueryString(requestLine.getQueryString());
+            headers = processHeaders(br);
+            requestParams.addBody(IOUtils.readData(br, headers.getContentLength()));
+        } catch (IOException e) {
+            log.error(e.getMessage());
         }
-
     }
 
-    public HttpMethod getMethod(){
+    private String createRequestLine(BufferedReader br) throws IOException {
+        String line = br.readLine();
+        if (line == null) {
+            throw new IllegalStateException();
+        }
+        return line;
+    }
+
+    private HttpHeaders processHeaders(BufferedReader br) throws IOException {
+        HttpHeaders headers = new HttpHeaders();
+        String line;
+        while (!(line = br.readLine()).equals("")) {
+            headers.add(line);
+        }
+        return headers;
+    }
+
+    public HttpMethod getMethod() {
         return requestLine.getMethod();
     }
 
-    public String getPath(){
+    public String getPath() {
         return requestLine.getPath();
     }
 
-    public String getParameter(String name){
-        return params.get(name);
+    public String getHeader(String name) {
+        return headers.getHeader(name);
     }
 
-    public String getHeader(String name){
-        return headers.get(name);
-    }
-
-    public boolean isLogin(){
-        Map<String, String> cookies = HttpRequestUtils.parseCookies(getHeader("Cookie"));
-        String value = cookies.get("logined");
-        if(value == null){
-            return false;
-        }
-        return Boolean.parseBoolean(value);
+    public String getParameter(String name) {
+        return requestParams.getParameter(name);
     }
 
 }

@@ -4,10 +4,13 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import controller.AbstractController;
+import controller.Controller;
 import db.DataBase;
 import http.HttpRequest;
 import http.HttpResponse;
@@ -27,6 +30,8 @@ public class RequestHandler extends Thread {
         this.connection = connectionSocket;
     }
 
+    Map<String, Controller> controllers = new HashMap<String, Controller>();
+
     public void run() {
         log.debug("New Client Connect! Connected IP : {}, Port : {}", connection.getInetAddress(),
                 connection.getPort());
@@ -35,52 +40,11 @@ public class RequestHandler extends Thread {
             HttpRequest request = new HttpRequest(in);
             HttpResponse response = new HttpResponse(out);
 
-            String path = getDefaultUrl(request.getPath());
-
-            if("/user/create".equals(path)){
-                String userId = request.getParameter("userId");
-                String password = request.getParameter("password");
-                String name = request.getParameter("name");
-                String email = request.getParameter("email");
-                User user = new User(userId, password, name, email);
-                log.debug("user : {}", user);
-                DataBase.addUser(user);
-                response.sendRedirect("/index.html");
-            }else if("/user/login".equals(path)){
-                User user = DataBase.findUserById(request.getParameter("userId"));
-                String password = request.getParameter("password");
-                if(user != null){
-                    if(user.login(password)){
-                        response.addHeader("Set-Cookie", "logined=true");
-                        response.sendRedirect("/index.html");
-                    }else if(password.equals(user.getPassword())){
-                        response.sendRedirect("/user/login_failed.html");
-                    }
-                }else{
-                    response.sendRedirect("/user/login_failed.html");
-                }
-
-            }else if("/user/list".equals(path)){
-                if(!request.isLogin()){
-                    response.sendRedirect("/ser/login.html");
-                    return;
-                }
-
-                Collection<User> users = DataBase.findAll();
-                StringBuffer sb = new StringBuffer();
-
-                sb.append("<table border='1'>");
-                users.forEach((user) -> {
-                    sb.append("<tr>");
-                    sb.append("<td> 유저 아이디 : " + user.getUserId() + "</td>");
-                    sb.append("<td> 유저 이메일 : " + user.getEmail() + "</td>");
-                    sb.append("<td> 유저 이름 : " + user.getName() + "</td>");
-                    sb.append("</tr>");
-                });
-                sb.append("</table>");
-                response.forwardBody(sb.toString());
+            Controller controller = RequestMapping.getController(request.getPath());
+            if(controller == null){
+                response.forward(getDefaultUrl(request.getPath()));
             }else{
-                response.forward(path);
+                controller.service(request, response);
             }
         } catch (IOException io) {
             log.error(io.getMessage());

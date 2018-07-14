@@ -1,6 +1,5 @@
 package http;
 
-import http.HttpRequest;
 import org.junit.Test;
 
 import java.io.File;
