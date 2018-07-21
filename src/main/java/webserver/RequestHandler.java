@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,6 +41,10 @@ public class RequestHandler extends Thread {
             HttpRequest request = new HttpRequest(in);
             HttpResponse response = new HttpResponse(out);
 
+            if(request.getCookies().getCookie("JSESSIONID") == null){
+                response.addHeader("Set-Cookie", "JSESSIONID=" + UUID.randomUUID());
+            }
+
             Controller controller = RequestMapping.getController(request.getPath());
             if(controller == null){
                 response.forward(getDefaultUrl(request.getPath()));
@@ -57,4 +62,5 @@ public class RequestHandler extends Thread {
         }
         return path;
     }
+
 }
